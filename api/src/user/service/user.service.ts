@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { match } from 'assert';
+import { IPaginationOptions, paginate, Pagination } from 'nestjs-typeorm-paginate';
 import { catchError, from, map, Observable, switchMap, throwError } from 'rxjs';
 import { AuthService } from 'src/auth/auth.service';
 import { FindOneOptions, Repository } from 'typeorm';
 import { UserEntity } from '../models/user.entity';
-import { User } from '../models/user.interface';
+import { User, UserRole } from '../models/user.interface';
 
 @Injectable()
 export class UserService {
@@ -23,7 +24,7 @@ export class UserService {
                 newUser.username = user.username;
                 newUser.email = user.email;
                 newUser.password = passwordHash;
-                newUser.role = user.role;
+                newUser.role = UserRole.USER;
 
                 return from(this.userRepository.save(newUser)).pipe(
                     map((user: User) => {
@@ -35,6 +36,16 @@ export class UserService {
 
             })
     )
+    }
+
+    paginate(options: IPaginationOptions): Observable<Pagination<User>> {
+      return from(paginate<User>(this.userRepository, options)).pipe(
+        map((userspageable: Pagination<User>) => {
+            userspageable.items.forEach(function (v) {delete v.password});
+
+            return userspageable;
+        })
+      )
     }
 
     findOne(id: number): Observable<User> {
@@ -66,6 +77,7 @@ export class UserService {
 
         delete user.email;
         delete user.password;
+        delete user.role;
 
         return from(this.userRepository.update(id, user));
     }
