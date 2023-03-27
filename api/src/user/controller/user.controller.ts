@@ -1,12 +1,29 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UploadedFile, Response, UseGuards, Request, UseInterceptors } from '@nestjs/common';
 import { Query } from '@nestjs/common/decorators/http/route-params.decorator';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Pagination } from 'nestjs-typeorm-paginate';
-import { catchError, map, Observable, of } from 'rxjs';
+import { catchError, map, Observable, of, tap } from 'rxjs';
 import { hasRoles } from 'src/auth/decorator/roles.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { User, UserRole } from '../models/user.interface';
 import { UserService } from '../service/user.service';
+import { uuid } from 'uuidv4';
+import {diskStorage} from 'multer'
+import path = require('path');
+import { join } from 'path';
+
+export const storage = {storage: diskStorage({
+    destination: './uploads/profileimages',
+    filename: (req, file, cb) => {
+        const parsedPath = path.parse(file.originalname);
+        const filename: string = (parsedPath.name || '').replace(/\s/g, "") + uuid() + parsedPath.ext;
+        const extension: string = parsedPath.ext;
+
+
+        cb(null, `${filename}${extension}`)
+    }
+})}
 
 @Controller('users')
 export class UserController {
@@ -76,6 +93,24 @@ export class UserController {
     @Put(':id/role')
     updateRoleOfUser(@Param('id') id:string, @Body() user: User): Observable<User>{
         return this.userService.updateRoleOfUser(Number(id), user)
+    }
+    
+    @UseGuards(JwtAuthGuard)
+    @Post('upload')
+    @UseInterceptors(FileInterceptor('file', storage))
+    uploadFile(@UploadedFile() file, @Request() req): Observable<Object> {
+       const user: User = req.user.user
+       console.log(user);
+
+       return this.userService.updateOne(user.id, {profileImage: file.filename}).pipe(
+        tap((user: User) => console.log(user)),
+        map((user:User) => ({profileImage: user.profileImage}))
+       )
+    }
+
+    @Get('profile-image/:imagename')
+    findProfileImage(@Param('imagename') imagename, @Response() res): Observable<Object> {
+        return of(res.sendFile(join(process.cwd(), 'uploads/profileimages/' + imagename)))
     }
 
 }
