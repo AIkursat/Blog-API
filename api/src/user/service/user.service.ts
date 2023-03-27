@@ -4,6 +4,7 @@ import { match } from 'assert';
 import { IPaginationOptions, paginate, Pagination } from 'nestjs-typeorm-paginate';
 import { catchError, from, map, Observable, switchMap, throwError } from 'rxjs';
 import { AuthService } from 'src/auth/auth.service';
+import { Like } from 'typeorm';
 import { FindOneOptions, Repository } from 'typeorm';
 import { UserEntity } from '../models/user.entity';
 import { User, UserRole } from '../models/user.interface';
@@ -46,6 +47,37 @@ export class UserService {
             return userspageable;
         })
       )
+    }
+    
+    paginateFilterByUsername(options: IPaginationOptions, user:User): Observable<Pagination<User>>{
+        return from(this.userRepository.findAndCount({
+            skip: options.page * options.limit || 0,
+            take: options.limit || 10,
+            order: {id: "ASC"},
+            select: ['id', 'name', 'username', 'email', 'role'],
+            where: [
+                { username: Like(`%${user.username}%`)}
+            ]
+        })).pipe(
+            map(([users, totalUsers]) => {
+                const usersPageable: Pagination<User> = {
+                    items: users,
+                    links: {
+                        first: options.route + `?limit=${options.limit}`,
+                        previous: options.route + ``,
+                        next: options.route + `?limit=${options.limit}&page=${options.page +1}`,
+                        last: options.route + `?limit=${options.limit}&page=${totalUsers / options.page}`
+                    },
+                    meta: {
+                        currentPage: options.page,
+                        itemCount: users.length,
+                        itemsPerPage: options.limit,
+                        totalItems: totalUsers,
+                        totalPages: Math.ceil(totalUsers / options.limit )
+                    }
+                }
+            })
+        )
     }
 
     findOne(id: number): Observable<User> {

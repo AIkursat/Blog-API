@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { Query } from '@nestjs/common/decorators/http/route-params.decorator';
-import { Pagination } from 'nestjs-typeorm-paginate/dist/pagination';
+import { Pagination } from 'nestjs-typeorm-paginate';
 import { catchError, map, Observable, of } from 'rxjs';
 import { hasRoles } from 'src/auth/decorator/roles.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-guard';
@@ -30,10 +30,24 @@ export class UserController {
         )
     }
 
+    // localhost:3000/api/users?username=Fel&page=0
     @Get()
-    index(@Query('page') page: number = 1, @Query('limit') limit: number =10): Observable<Pagination<User>> {
+    index(@Query('page') page: number = 1,
+          @Query('limit') limit: number =10,
+          @Query('username') username: string
+          ): Observable<Pagination<User>> {
         limit = limit > 100 ? 100: limit;
-        return this.userService.paginate({page: Number(page), limit: Number(limit), route:'http://localhost:3000/users'})
+        console.log(username);
+
+        if(username == null || username == undefined) {
+            return this.userService.paginate({page: Number(page), limit: Number(limit), route: 'http://localhost:3000/api/users'});
+        } else {
+            return this.userService.paginateFilterByUsername(
+                {page: Number(page), limit: Number(limit), route: 'http://localhost:3000/api/users'},
+                {username}
+            )
+        }
+    
     }
 
     @Get(':id')
