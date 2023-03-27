@@ -12,6 +12,7 @@ import { uuid } from 'uuidv4';
 import {diskStorage} from 'multer'
 import path = require('path');
 import { join } from 'path';
+import { UserIsUserGuard } from 'src/auth/guards/UserIsUser.guard';
 
 export const storage = {storage: diskStorage({
     destination: './uploads/profileimages',
@@ -82,7 +83,8 @@ export class UserController {
     deleteOne(@Param('id')id: string): Observable<any> {
       return this.userService.deleteOne(Number(id));
     }
-
+    
+    @UseGuards(JwtAuthGuard, UserIsUserGuard)
     @Put(':id')
     updateOne(@Param('id') id: string, @Body() user:User) {
         return this.userService.updateOne(Number(id),user)
